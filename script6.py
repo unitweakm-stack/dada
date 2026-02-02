@@ -6,10 +6,11 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from yt_dlp import YoutubeDL
 from concurrent.futures import ThreadPoolExecutor
-from aiohttp import web  # Render uchun veb-server
+from aiohttp import web
 
 # --- SOZLAMALAR ---
-API_TOKEN = '8350721461:AAGsYIvy6SdyrwQEXqGCHEFpkx0Kk3KYBZU'
+# Yangi token o'rnatildi
+API_TOKEN = '7780544610:AAGfmsEw5SELtoblUPKsG74ombSxoSW2o88'
 ARTIST_NAME = "WEAK M🦂"
 CH_ID = "@weakmwx"
 CH_LINK = "https://t.me/weakmwx"
@@ -19,7 +20,7 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 executor = ThreadPoolExecutor(max_workers=30)
 
-# --- RENDER UCHUN VEB-SERVER (24/7 ISHLASHI UCHUN) ---
+# --- RENDER UCHUN VEB-SERVER ---
 async def handle(request):
     return web.Response(text="Bot is running 24/7!")
 
@@ -28,7 +29,7 @@ async def start_web_server():
     app.router.add_get('/', handle)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080) # Render 8080 portni kutadi
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
     await site.start()
 
 # --- YORDAMCHI FUNKSIYALAR ---
@@ -60,7 +61,6 @@ def download_media(query, user_id):
         'quiet': True, 
         'no_warnings': True,
         'default_search': 'ytsearch1' if not is_link else None,
-        # YOUTUBE BLOKIROVKASINI CHETLAB O'TISH UCHUN:
         'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None,
     }
     
@@ -112,14 +112,12 @@ async def handle_all(message: types.Message):
         await status.delete()
         if os.path.exists(file_path): os.remove(file_path)
     except Exception as e:
-        await status.edit_text(f"❌ Xatolik: {str(e)[:50]}...")
+        await status.edit_text(f"❌ Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.")
 
 async def main():
-    # Render uchun veb-serverni fonda ishga tushirish
     asyncio.create_task(start_web_server())
-    
     await bot.delete_webhook(drop_pending_updates=True)
-    print("Bot ishga tushdi!")
+    print("Bot yangi token bilan ishga tushdi!")
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
