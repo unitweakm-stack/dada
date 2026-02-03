@@ -2,7 +2,7 @@ import asyncio
 import os
 import random
 import string
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from yt_dlp import YoutubeDL
 from aiohttp import web
 
@@ -13,20 +13,18 @@ CH_ID = "@weakvertual"
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Render uxlab qolmasligi uchun kichik server
+# Render uxlab qolmasligi uchun server
 async def handle(request):
-    return web.Response(text="Bot is online and rocking!")
+    return web.Response(text="Bot is running fast on Render!")
 
 async def start_webserver():
     app = web.Application()
     app.router.add_get("/", handle)
     runner = web.AppRunner(app)
     await runner.setup()
-    # Render avtomatik beradigan PORT dan foydalanamiz
     port = int(os.getenv("PORT", 8080))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    print(f"✅ Web server {port}-portda ishga tushdi")
 
 def get_ydl_opts(filename):
     return {
@@ -34,64 +32,57 @@ def get_ydl_opts(filename):
         'outtmpl': f"{filename}.%(ext)s",
         'quiet': True,
         'no_warnings': True,
-        'default_search': 'ytsearch20',
+        'default_search': 'ytsearch5',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '192',
+            'preferredquality': '128',
         }],
     }
 
+# --- 1. MUSIQA QIDIRUV (Bot ichida) ---
+@dp.message(F.text)
+async def user_search(message: types.Message):
+    if message.chat.type != 'private': return
+    msg = await message.answer("🔍 Qidirilmoqda...")
+    uid = "".join(random.choices(string.digits, k=4))
+    fname = f"u_{uid}"
+    try:
+        with YoutubeDL(get_ydl_opts(fname)) as ydl:
+            info = await asyncio.to_thread(ydl.extract_info, message.text, download=True)
+            fpath = f"{fname}.mp3"
+            if os.path.exists(fpath):
+                await message.answer_audio(types.FSInputFile(fpath), caption=f"🎵 {info['entries'][0]['title']}\n🚀 @weakvertual")
+                os.remove(fpath)
+                await msg.delete()
+    except:
+        await msg.edit_text("❌ Topilmadi.")
+
+# --- 2. TEZKOR AVTO-POST (2 MINUT) ---
 async def auto_post():
-    print("📢 Takrorlanmas avto-post tizimi ishga tushdi...")
     while True:
         try:
-            queries = [
-                "Konsta yangi", "Massa rep", "Shaka uzbek rap", "Milano rep",
-                "Miyagi & Эндшпиль", "Macan hits", "Central Cee", 
-                "Uzbek underground", "Timur Alixonov", "Sahar guruhi", 
-                "Tohir Sodiqov retro", "Diyor Mahkamov", "Massa 2026",
-                "Konsta ma'noli", "Uzbek hip hop new", "Miyagi 2026",
-                "Uzbek indie", "Uzbek lo-fi"
-            ]
-            
-            base_q = random.choice(queries)
-            q = f"{base_q} {random.choice(string.ascii_lowercase)}"
-            unique_id = "".join(random.choices(string.digits, k=5))
-            fname = f"song_{unique_id}"
+            queries = ["Konsta", "Massa rep", "Shaka uzbek rap", "Miyagi hits", "Uzbek underground"]
+            q = f"{random.choice(queries)} {random.choice(string.ascii_lowercase)}"
+            uid = "".join(random.choices(string.digits, k=4))
+            fname = f"a_{uid}"
             
             with YoutubeDL(get_ydl_opts(fname)) as ydl:
-                info = await asyncio.to_thread(ydl.extract_info, q, download=False)
-                
+                info = await asyncio.to_thread(ydl.extract_info, q, download=True)
                 if 'entries' in info and len(info['entries']) > 0:
-                    selected_entry = random.choice(info['entries'])
-                    title = selected_entry.get('title', '').lower()
-                    
-                    # Sifat nazorati
-                    blacklist = ["rasul", "hamdam", "toyona", "yalla", "lazzgi", "jonli"]
-                    if any(word in title for word in blacklist):
-                        continue
-
-                    await asyncio.to_thread(ydl.download, [selected_entry['webpage_url']])
-                    
-                    fpath = f"{fname}.mp3"
-                    if os.path.exists(fpath):
-                        caption = f"💎 **{selected_entry.get('title')}**\n\n🎧 @weakvertual - Sifatli tanlov"
-                        await bot.send_audio(CH_ID, types.FSInputFile(fpath), caption=caption)
-                        os.remove(fpath)
-            
-            # Har 25 daqiqada bitta yangi musiqa
-            await asyncio.sleep(1500)
-            
-        except Exception as e:
-            print(f"⚠️ Xato: {e}")
-            await asyncio.sleep(60)
+                    selected = random.choice(info['entries'])
+                    if not any(x in selected['title'].lower() for x in ["rasul", "hamdam", "toyona"]):
+                        fpath = f"{fname}.mp3"
+                        if os.path.exists(fpath):
+                            await bot.send_audio(CH_ID, types.FSInputFile(fpath), caption=f"💎 **{selected['title']}**\n🔥 @weakvertual")
+                            os.remove(fpath)
+            await asyncio.sleep(120) # 2 minut
+        except:
+            await asyncio.sleep(30)
 
 async def main():
-    # Bir vaqtning o'zida ham serverni, ham botni ishga tushiramiz
     asyncio.create_task(start_webserver())
     asyncio.create_task(auto_post())
-    
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
