@@ -8,14 +8,13 @@ from aiohttp import web
 
 # --- SOZLAMALAR ---
 API_TOKEN = '7780544610:AAGfmsEw5SELtoblUPKsG74ombSxoSW2o88'
-CH_ID = "@weakvertual" 
+CH_ID = "@weakvertual"
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Render uxlab qolmasligi uchun server
 async def handle(request):
-    return web.Response(text="Bot is running fast on Render!")
+    return web.Response(text="Bot is running!")
 
 async def start_webserver():
     app = web.Application()
@@ -40,7 +39,6 @@ def get_ydl_opts(filename):
         }],
     }
 
-# --- 1. MUSIQA QIDIRUV (Bot ichida) ---
 @dp.message(F.text)
 async def user_search(message: types.Message):
     if message.chat.type != 'private': return
@@ -52,13 +50,12 @@ async def user_search(message: types.Message):
             info = await asyncio.to_thread(ydl.extract_info, message.text, download=True)
             fpath = f"{fname}.mp3"
             if os.path.exists(fpath):
-                await message.answer_audio(types.FSInputFile(fpath), caption=f"🎵 {info['entries'][0]['title']}\n🚀 @weakvertual")
+                await message.answer_audio(types.FSInputFile(fpath), caption=f"🎵 {info['entries'][0]['title']}\n🚀 {CH_ID}")
                 os.remove(fpath)
                 await msg.delete()
     except:
         await msg.edit_text("❌ Topilmadi.")
 
-# --- 2. TEZKOR AVTO-POST (2 MINUT) ---
 async def auto_post():
     while True:
         try:
@@ -66,7 +63,6 @@ async def auto_post():
             q = f"{random.choice(queries)} {random.choice(string.ascii_lowercase)}"
             uid = "".join(random.choices(string.digits, k=4))
             fname = f"a_{uid}"
-            
             with YoutubeDL(get_ydl_opts(fname)) as ydl:
                 info = await asyncio.to_thread(ydl.extract_info, q, download=True)
                 if 'entries' in info and len(info['entries']) > 0:
@@ -74,9 +70,9 @@ async def auto_post():
                     if not any(x in selected['title'].lower() for x in ["rasul", "hamdam", "toyona"]):
                         fpath = f"{fname}.mp3"
                         if os.path.exists(fpath):
-                            await bot.send_audio(CH_ID, types.FSInputFile(fpath), caption=f"💎 **{selected['title']}**\n🔥 @weakvertual")
+                            await bot.send_audio(CH_ID, types.FSInputFile(fpath), caption=f"💎 **{selected['title']}**\n🔥 {CH_ID}")
                             os.remove(fpath)
-            await asyncio.sleep(120) # 2 minut
+            await asyncio.sleep(120)
         except:
             await asyncio.sleep(30)
 
