@@ -1,0 +1,102 @@
+import asyncio
+import os
+import random
+import string
+import re
+from aiogram import Bot, Dispatcher, types
+from yt_dlp import YoutubeDL
+from flask import Flask
+from threading import Thread
+
+# --- SOZLAMALAR ---
+API_TOKEN = '8594004839:AAE4I2eFEcNr_MhE4EoHANIS02tqs3x3WPs'
+CH_ID = "@dodajalla" 
+
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher()
+
+# --- XOTIRA TIZIMI ---
+DB_FILE = "sent_songs.txt"
+def get_sent():
+    if not os.path.exists(DB_FILE):
+        with open(DB_FILE, "w") as f: pass
+        return set()
+    with open(DB_FILE, "r") as f:
+        return set(line.strip() for line in f if line.strip())
+
+def save_sent(sid):
+    with open(DB_FILE, "a") as f:
+        f.write(f"{sid}\n")
+
+# --- SERVER (UPTIMEROBOT UCHUN) ---
+app = Flask('')
+@app.route('/')
+def home(): return "Bot 1 minut rejimida faol!"
+
+def run():
+    # Replit portini 8080 qilib belgilaymiz
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# --- NOMNI TOZALASH ---
+def clean_metadata(text):
+    text = re.sub(r'\(.*?\)|\[.*?\]', '', text)
+    garbage = ["Official Video", "Audio", "Clip", "Full HD", "4K", "HD", "Yangi", "2025", "Hit"]
+    for word in garbage:
+        text = text.replace(word, "").replace(word.lower(), "").replace(word.upper(), "")
+    return text.strip()
+
+# --- ASOSIY ISHCHI ---
+async def auto_post():
+    uzb_genres = ["Uzbek xit", "Yangi taronalar", "Konsta", "Xamdam Sobirov"]
+    while True:
+        try:
+            already_sent = get_sent()
+            q = f"{random.choice(uzb_genres)} {random.choice(string.ascii_lowercase)}"
+            uid = "".join(random.choices(string.digits, k=5))
+
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': f'm_{uid}.%(ext)s',
+                'quiet': True,
+                'no_warnings': True,
+                'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}],
+                'sleep_interval': 5,
+            }
+
+            with YoutubeDL(ydl_opts) as ydl:
+                info = await asyncio.to_thread(ydl.extract_info, f"ytsearch3:{q}", download=False)
+                if info and 'entries' in info:
+                    for entry in info['entries']:
+                        # Duration xatosini tekshirish
+                        duration = entry.get('duration', 0)
+                        entry_id = entry.get('id')
+
+                        if entry_id and 120 < duration < 480 and entry_id not in already_sent:
+                            await asyncio.to_thread(ydl.download, [entry['webpage_url']])
+                            fpath = f'm_{uid}.mp3'
+                            if os.path.exists(fpath):
+                                name = clean_metadata(entry.get('title', 'Musiqa'))
+                                audio = types.FSInputFile(fpath, filename=f"{name}.mp3")
+                                await bot.send_audio(CH_ID, audio, caption=f"🎵 **{name}**\n\n✅ @dodajalla", title=name, performer="Uzbek")
+                                save_sent(entry_id)
+                                os.remove(fpath)
+                                print(f"Yuborildi: {name}")
+                                break
+            await asyncio.sleep(60) # 1 minut kutish
+        except Exception as e:
+            print(f"Xato: {e}")
+            await asyncio.sleep(30)
+
+async def main():
+    keep_alive()
+    # Conflict xatosini oldini olish
+    await bot.delete_webhook(drop_pending_updates=True)
+    asyncio.create_task(auto_post())
+    await dp.start_polling(bot)
+
+if __name__ == '__main__':
+    asyncio.run(main())
